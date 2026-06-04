@@ -14,7 +14,7 @@ export interface IVistaEnvio {
   cliente: string;
   origen: string;
   destino: string;
-  costo: number; 
+  costoEnvio: number; 
   
   conductor?: string;
   nombreConductor?: string;

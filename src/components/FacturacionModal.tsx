@@ -18,7 +18,7 @@ import {
 import { appsettings } from "../settings/appsettings";
 import type { IFacturacion } from "../Interfaces/IFacturacion";
 import type { ICliente } from "../Interfaces/ICliente";
-import type { IVistaEnvio } from "../Interfaces/IVistaEnvio"; 
+import type { IVistaEnvio } from "../Interfaces/IVistaEnvio";
 import Swal from "sweetalert2";
 
 interface FacturacionModalProps {
@@ -36,14 +36,14 @@ export function FacturacionModal({
   clientes,
   onSuccess,
 }: FacturacionModalProps) {
-  
+
   const [idCliente, setIdCliente] = useState<number>(0);
   const [fechaFactura, setFechaFactura] = useState<string>("");
   const [montoTotal, setMontoTotal] = useState<number>(0);
   const [estadoPago, setEstadoPago] = useState<string>("Pendiente");
   const [idEnvio, setIdEnvio] = useState<number>(0);
 
-  const [envios, setEnvios] = useState<IVistaEnvio[]>([]); // ⭐ Usar IVistaEnvio
+  const [envios, setEnvios] = useState<IVistaEnvio[]>([]);
   const [enviosFiltrados, setEnviosFiltrados] = useState<IVistaEnvio[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
@@ -51,32 +51,38 @@ export function FacturacionModal({
 
   const esEdicion: boolean = !!facturacion;
 
-  
+
   const obtenerEnvios = async (): Promise<void> => {
     try {
-      const response = await fetch(`${appsettings.apiUrl}VistaEnvio/Lista`); // ⭐ Mismo endpoint
+      const response = await fetch(`${appsettings.apiUrl}Envio/VistaDetallada`);
+
       if (response.ok) {
         const data = await response.json();
-        
-        
-        const enviosLimpios: IVistaEnvio[] = Array.isArray(data) 
+
+        const enviosLimpios: IVistaEnvio[] = Array.isArray(data)
           ? data.map((e: any) => ({
-              idEnvios: Number(e.idEnvios) || 0,
-              idCliente: Number(e.idCliente) || 0,
-              idRuta: Number(e.idRuta) || 0,
-              fechaSolicitud: String(e.fechaSolicitud || ""),
-              fechaEntregaEsperada: String(e.fechaEntregaEsperada || ""),
-              estado: String(e.estado || ""),
-              mercancia: String(e.mercancia || ""),
-              peso: Number(e.peso) || 0,
-              volumen: Number(e.volumen) || 0,
-              cliente: String(e.cliente || "Desconocido"),
-              origen: String(e.origen || "Desconocido"),
-              destino: String(e.destino || "Desconocido"),
-              costo: Number(e.costo) || 0, // ⭐ Campo costo como en EnviosLista
-            }))
+            idEnvios: Number(e.idEnvios) || 0,
+            idCliente: Number(e.idCliente) || 0,
+            idRuta: Number(e.idRuta) || 0,
+            idEstadoEnvio: Number(e.idEstadoEnvio) || 0,
+            idConductor: Number(e.idConductor) || 0,
+
+            fechaSolicitud: String(e.fechaSolicitud || ""),
+            fechaEntregaEsperada: String(e.fechaEntregaEsperada || ""),
+            estado: String(e.estado || ""),
+            mercancia: String(e.mercancia || ""),
+
+            peso: Number(e.peso) || 0,
+            volumen: Number(e.volumen) || 0,
+
+            cliente: String(e.cliente || "Desconocido"),
+            origen: String(e.origen || "Desconocido"),
+            destino: String(e.destino || "Desconocido"),
+
+            costoEnvio: Number(e.costoEnvio ?? e.costo ?? 0),
+          }))
           : [];
-        
+
         setEnvios(enviosLimpios);
       } else {
         setEnvios([]);
@@ -87,7 +93,6 @@ export function FacturacionModal({
     }
   };
 
-  
   const filtrarEnviosPorCliente = (clienteId: number): void => {
     if (clienteId <= 0) {
       setEnviosFiltrados([]);
@@ -97,41 +102,41 @@ export function FacturacionModal({
     }
 
     const enviosDelCliente: IVistaEnvio[] = envios.filter(
-      (envio) => envio.idCliente === clienteId
+      (envio) => Number(envio.idCliente) === Number(clienteId)
     );
     setEnviosFiltrados(enviosDelCliente);
 
-    
+
     if (enviosDelCliente.length === 1) {
       const primerEnvio = enviosDelCliente[0];
       setIdEnvio(primerEnvio.idEnvios);
-      setMontoTotal(primerEnvio.costo); // ⭐ Usar campo costo
+      setMontoTotal(primerEnvio.costoEnvio);
     } else {
       setIdEnvio(0);
       setMontoTotal(0);
     }
   };
 
-  
+
   const calcularCostoEnvio = (envioId: number): void => {
     if (envioId <= 0) {
       setMontoTotal(0);
       return;
     }
-    
+
     const envioSeleccionado: IVistaEnvio | undefined = envios.find(
       (e) => e.idEnvios === envioId
     );
-    
+
     if (envioSeleccionado) {
-      setMontoTotal(envioSeleccionado.costo); 
+      setMontoTotal(envioSeleccionado.costoEnvio);
     }
   };
 
-  
+
   const resetForm = (): void => {
     const fechaHoy: string = new Date().toISOString().split('T')[0];
-    
+
     setIdCliente(0);
     setFechaFactura(fechaHoy);
     setMontoTotal(0);
@@ -142,11 +147,11 @@ export function FacturacionModal({
     setError("");
   };
 
- 
+
   useEffect(() => {
     if (isOpen) {
       obtenerEnvios();
-      
+
       if (esEdicion && facturacion) {
         setIdCliente(Number(facturacion.IdCliente) || 0);
         setFechaFactura(facturacion.FechaFactura ? facturacion.FechaFactura.split('T')[0] : "");
@@ -164,60 +169,60 @@ export function FacturacionModal({
     }
   }, [isOpen, esEdicion, facturacion, clientes]);
 
-  
+
   useEffect(() => {
     if (idCliente > 0) {
       filtrarEnviosPorCliente(idCliente);
     }
   }, [idCliente, envios]);
 
-  
+
   const handleClienteChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const clienteId: number = Number(e.target.value) || 0;
     setIdCliente(clienteId);
-    
+
     const cliente: ICliente | undefined = clientes.find(
       (c) => c.idClientes === clienteId
     );
     setClienteSeleccionado(cliente || null);
-    
+
     // Reset otros campos
     setIdEnvio(0);
     setMontoTotal(0);
     setError("");
   };
 
-  
+
   const handleEnvioChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const envioId: number = Number(e.target.value) || 0;
     setIdEnvio(envioId);
-    
-   
+
+
     if (envioId > 0) {
       calcularCostoEnvio(envioId);
     }
     setError("");
   };
 
- 
+
   const handleFechaChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setFechaFactura(e.target.value);
     setError("");
   };
 
-  
+
   const handleEstadoChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setEstadoPago(e.target.value);
     setError("");
   };
 
- 
+
   const handleMontoChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setMontoTotal(Number(e.target.value) || 0);
     setError("");
   };
 
-  
+
   const validarFormulario = (): boolean => {
     if (idCliente <= 0) {
       setError("Debe seleccionar un cliente");
@@ -240,7 +245,7 @@ export function FacturacionModal({
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
-    
+
     if (!validarFormulario()) return;
 
     setLoading(true);
@@ -253,20 +258,20 @@ export function FacturacionModal({
 
       const body = esEdicion
         ? {
-            IdFacturacion: facturacion!.IdFacturacion,
-            IdCliente: idCliente,
-            FechaFactura: fechaFactura,
-            MontoTotal: montoTotal,
-            EstadoPago: estadoPago,
-            IdEnvio: idEnvio
-          }
+          IdFacturacion: facturacion!.IdFacturacion,
+          IdCliente: idCliente,
+          FechaFactura: fechaFactura,
+          MontoTotal: montoTotal,
+          EstadoPago: estadoPago,
+          IdEnvio: idEnvio
+        }
         : {
-            IdCliente: idCliente,
-            FechaFactura: fechaFactura,
-            MontoTotal: montoTotal,
-            EstadoPago: estadoPago,
-            IdEnvio: idEnvio
-          };
+          IdCliente: idCliente,
+          FechaFactura: fechaFactura,
+          MontoTotal: montoTotal,
+          EstadoPago: estadoPago,
+          IdEnvio: idEnvio
+        };
 
       const response = await fetch(url, {
         method: esEdicion ? "PUT" : "POST",
@@ -295,7 +300,7 @@ export function FacturacionModal({
     }
   };
 
-  
+
   const envioSeleccionado: IVistaEnvio | undefined = envios.find(
     (e) => e.idEnvios === idEnvio
   );
@@ -312,7 +317,7 @@ export function FacturacionModal({
           {error && <Alert color="danger">{error}</Alert>}
 
           <Row>
-            
+
             <Col md={6}>
               <FormGroup>
                 <Label for="IdCliente">
@@ -364,7 +369,7 @@ export function FacturacionModal({
           )}
 
           <Row>
-           
+
             <Col md={8}>
               <FormGroup>
                 <Label for="IdEnvio">
@@ -381,14 +386,14 @@ export function FacturacionModal({
                   required
                 >
                   <option value={0}>
-                    {idCliente === 0 
-                      ? "Primero seleccione un cliente..." 
+                    {idCliente === 0
+                      ? "Primero seleccione un cliente..."
                       : "Seleccione un envío..."
                     }
                   </option>
                   {enviosFiltrados.map((envio) => (
                     <option key={envio.idEnvios} value={envio.idEnvios}>
-                      #{envio.idEnvios} - {envio.mercancia} - {envio.origen} → {envio.destino} (${envio.costo.toFixed(2)})
+                      #{envio.idEnvios} - {envio.mercancia} - {envio.origen} → {envio.destino} (${envio.costoEnvio.toFixed(2)})
                     </option>
                   ))}
                 </Input>
@@ -461,7 +466,7 @@ export function FacturacionModal({
                     <br />
                     <strong>Estado:</strong> {envioSeleccionado.estado}
                     <br />
-                    <strong>💰 Costo:</strong> <span className="fw-bold">${envioSeleccionado.costo.toFixed(2)}</span>
+                    <strong>💰 Costo:</strong> <span className="fw-bold">${envioSeleccionado.costoEnvio.toFixed(2)}</span>
                   </small>
                 </Alert>
               </Col>
